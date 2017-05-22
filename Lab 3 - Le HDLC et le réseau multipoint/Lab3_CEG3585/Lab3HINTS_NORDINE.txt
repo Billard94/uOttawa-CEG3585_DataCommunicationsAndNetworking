@@ -1,0 +1,164 @@
+Bonsoir,
+
+Veuillez trouver en bas des hints pour vous aider à compléter le code du lab 3. Les lignes en jaunes sont à compléter.
+SEE EMAILS
+Salutations,
+Nordine
+
+public Result dlDataRequest(String sdu)
+     {
+          String frame; // For building frames
+          Result.ResultCode cd = Result.ResultCode.SrvSucessful;
+          boolean flag = …;
+          String finalBit =… ;
+          // Wait for poll - need an RR with P bit - 1
+          while(…)
+          {
+               // Get an RR frame
+               frame = getRRFrame..;  // waits until frame arrives
+               if(frame.charAt(HdlcDefs.PF_IX)=='1') flag = …; // break out of loop
+          }
+
+          // Send the SDU
+          // After each transmission, check for an ACK (RR)
+          // Use a sliding window of 3
+          // Reception will be go back-N
+          String [] dataArr = BitString.splitString(sdu, HdlcDefs.MAX_DATA_SIZE_BYTES);
+          // Convert the strings into bitstrings
+          for(int ix=0 ; ix < dataArr.length; ix++)
+               dataArr[ix] = BitString.stringToBitString(dataArr[ix]);
+          flag = true;
+          int dataIx = 0;
+          while(dataIx < dataArr… || frameBuffer… != 0) // want all frames to be acknowledged
+          {
+               // Send frame if window not closed and data not all trsnamitted.
+               if(dataIx < dataArr… && vs != rh…)
+               {
+                     // Define the final bit
+                    if(dataIx == …-1) finalBit =…; // Last frame
+                     else finalBit = …;
+                     frame = HdlcDefs.FLAG+BitString.intToBitString(stationAdr,HdlcDefs.ADR_SIZE_BITS)+
+                             HdlcDefs.I_FRAME+BitString.intToBitString(vs,HdlcDefs.SNUM_SIZE_BITS)+
+                             finalBit+BitString.intToBitString(vr,HdlcDefs.SNUM_SIZE_BITS)+
+                             dataArr[dataIx]+HdlcDefs.FLAG;
+                     frameBuffer.add(…); // buffer the frame
+                     vs = (vs+1)%HdlcDefs….;
+                     dataIx++; // index next part to send.
+                     physicalLayer.transmit(…);  // Transmits the frame
+                     displayDataXchngState("Data Link Layer: prepared and buffered I frame >"+BitString.displayFrame(frame)+"<");
+               }
+               // Check for RR
+               frame = getRRFrame(false); // just poll
+               if(frame != null) // have a frame
+               {
+                     int nr = BitString.bitStringToInt(…)
+                     int numAck =…
+                     // move window and unbuffer frames
+                     for(int i=0 ; i<numAck; i++) frameBuffer.remove(0);
+                     rhsWindow =…
+               }
+          }
+          return(new Result(cd, 0, null));
+     }
+
+     /*------------------------------------------------------------------------
+      * Helper Methods
+      *------------------------------------------------------------------------*/
+
+     // Determines the number of frames acknowledged from the
+     // acknowledge number nr.
+     // Parameters
+     // nr - received ack number - indicates next expected
+     //      sequence number (nr can equal lhs - window is closed)
+     // rhs - right hand side of window - seq number to the
+     //       right of the last valid number that can be used
+     // sz - size of the window
+     private int checkNr(int nr, int rhs, int sz)
+     {
+          …// number of ack frames
+          …// left hand side of the window
+          //compute lhs
+          if( (rhs-sz) >= 0) lhs = …;
+          else lhs = …;
+
+          // Is nr in window
+          if( (lhs < rhs) && (nr >= ….) || // when window contains numbers in sequence
+               (lhs > rhs) && (nr >= …)
+          { // Yes in the window
+            // number of frames ack = nr - rhs
+            if((lhs < rhs)) num = …;
+            else
+            {
+                 if(nr < lhs) num = …
+                 else num = …;
+            }
+          }
+          return(num);
+     }
+
+     // Helper method to get an RR-frame
+     // If wait is true then wait until a frame
+     // arrives (call getframe(true).
+     // If false, return null if no frame
+     // is available from the physical layer (call getframe(false)
+     // or frame received is not an RR frame.
+     private String getRRFrame(boolean wait)
+     {
+          String …;
+          boolean flag =…;
+          // Get a frame
+          do
+          {
+               frame = …  // may wait on frame
+               if(frame != …)
+               {
+                     // Check if frame is S-frame
+                     String type =…
+                     if(type.equals(HdlcDefs.S_FRAME) == true) // Ignore other frames
+                     {
+                          String sframe =…
+                          if(sframe.equals(HdlcDefs.RR_SS)==…) flag = …;  // Ignore other frames
+                     }
+               }
+          } while(…);
+          return(frame);
+     }
+
+     // For displaying the status of variables used
+     // in exchanging data between stations.
+     private void displayDataXchngState(String msg)
+     {
+          int lhs; // left hand side of the window
+          //compute lhs
+          if( (rhsWindow-windowSize) >= 0) lhs = rhsWindow - windowSize;
+          else lhs = rhsWindow - windowSize + HdlcDefs.SNUM_SIZE_COUNT;
+
+          System.out.println("Data Link Layer: Station "+stationAdr+": "+msg);
+          System.out.println("    v(s) = "+vs+", v(r) = "+vr+
+                                ", Window: lhs="+lhs+" rhs="+rhsWindow+
+                                ", Number frames buffered = "+frameBuffer.size());
+     }
+
+     // Waits for reception of frame
+     // If wait is true, then wait for a frame to arrive,
+     // otherwise just poll physical layer for a frame.
+     // Returns null if no frame is received.
+     private String getFrame(boolean wait)
+     {
+          // Only frames with this stations address is processed - others are ignored
+          String frame = null;
+          do
+          {
+               if(wait) frame = physicalLayer.receive(); // block on receive.
+               else frame = physicalLayer.pollReceive();  // get frame from physical layer
+               if(frame != null)
+               {
+                     int adr = BitString.bitStringToInt(frame.substring(HdlcDefs.ADR_START, HdlcDefs.ADR_END));
+                     if(adr != stationAdr) frame = null;  // ignore strings for other destinations
+               }
+          } while(frame == null && wait);
+          //if(frame != null) System.out.println("Data Link Layer: Received frame >"+BitString.displayFrame(frame)+"<");
+          return(frame);
+     }
+
+}
